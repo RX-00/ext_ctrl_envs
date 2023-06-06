@@ -1,4 +1,4 @@
-<mujoco model="cart-pole">
+<mujoco model="nn_cartpole">
 	<!-- skybox asset -->
 	<asset>
 		<texture name="skybox" type="skybox" builtin="gradient" rgb1=".4 .6 .8" rgb2="0 0 0"

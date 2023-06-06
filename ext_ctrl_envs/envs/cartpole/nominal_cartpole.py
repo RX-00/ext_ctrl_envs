@@ -18,13 +18,14 @@ class NominalCartpoleEnv(MujocoEnv, utils.EzPickle):
         NOTE: from [https://github.com/Farama-Foundation/Gymnasium/blob/main/gymnasium/envs/mujoco/inverted_pendulum_v4.py]
     '''
 
+    # mandatory info for rendering env
     metadata = {
         "render_modes": [
             "human",
             "rgb_array",
             "depth_array",
         ],
-        "render_fps": 50,
+        "render_fps": 50, # NOTE: This depends on the .xml's timestep value
     }
 
     def __init__(self, **kwargs):
@@ -34,21 +35,25 @@ class NominalCartpoleEnv(MujocoEnv, utils.EzPickle):
         MujocoEnv.__init__(
             self,
             xml_path,
-            2,
+            2, # frame_skip
             observation_space=observation_space,
             default_camera_config=DEFAULT_CAMERA_CONFIG,
             **kwargs,
         )
 
+    # Step forward in simulation, given an action
     def step(self, a):
         reward = 1.0
         self.do_simulation(a, self.frame_skip)
         ob = self._get_obs()
+        
+        # termination state conditions
         terminated = bool(not np.isfinite(ob).all() or (np.abs(ob[1]) > 0.2))
         if self.render_mode == "human":
             self.render()
         return ob, reward, terminated, False, {}
 
+    # Initial state of the system
     def reset_model(self):
         qpos = self.init_qpos + self.np_random.uniform(
             size=self.model.nq, low=-0.01, high=0.01
@@ -59,5 +64,6 @@ class NominalCartpoleEnv(MujocoEnv, utils.EzPickle):
         self.set_state(qpos, qvel)
         return self._get_obs()
 
+    # Return state observation
     def _get_obs(self):
         return np.concatenate([self.data.qpos, self.data.qvel]).ravel()
