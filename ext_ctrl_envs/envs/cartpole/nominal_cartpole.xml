@@ -28,9 +28,11 @@
 		<material name="site" rgba=".5 .5 .5 .3"/>
 	</asset>
 
-	<option timestep="0.01" integrator="RK4">
+	<option timestep="0.01" integrator="RK4" gravity="0 0 -9.81">
 		<flag contact="disable" energy="enable"/>
 	</option>
+
+	<compiler inertiafromgeom="true"/>
 
 	<default>
 		<default class="pole">
@@ -69,6 +71,6 @@
 	</worldbody>
 
 	<actuator>
-		<motor name="slide" joint="slider" gear="10" ctrllimited="true" ctrlrange="-1 1" />
+		<motor name="slide" joint="slider" gear="1" ctrllimited="true" ctrlrange="-10 10" />
 	</actuator>
 </mujoco>

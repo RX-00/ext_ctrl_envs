@@ -28,6 +28,12 @@
 		<material name="site" rgba=".5 .5 .5 .3"/>
 	</asset>
 
+	<!--
+		TODO:
+			- make sure all the params match up with the nominal case
+			  e.g. gears, gravity, etc.
+	-->
+
 	<option timestep="0.01" integrator="RK4">
 		<flag contact="disable" energy="enable"/>
 	</option>
