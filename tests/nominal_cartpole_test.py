@@ -44,7 +44,7 @@ NOTE: step != timestep, please refer to the .xml file for the simulation timeste
       as that would effect the energy in the system.
 '''
 #while not done: # while loop for training
-for i in range(500): # for testing, 200 steps
+for i in range(5000): # for testing, 200 steps
 
     # Step return type - `tuple[ObsType, SupportsFloat, bool, bool, dict[str, Any]]`
     # These represent the next observation, the reward from the step,
@@ -55,6 +55,14 @@ for i in range(500): # for testing, 200 steps
     # record data about system
     x_positions.append(state[0])
     theta_positions.append(state[2])
+
+    # testing keyframes
+    if i == 250:
+        # des state key id: 0
+        mujoco.mj_resetDataKeyframe(env.unwrapped.model, env.unwrapped.data, 0)
+    elif i == 300:
+        # init state key id: 1
+        mujoco.mj_resetDataKeyframe(env.unwrapped.model, env.unwrapped.data, 1)
 
     # End the episode when either truncated or terminated is true
     #  - truncated: The episode duration reaches max number of timesteps

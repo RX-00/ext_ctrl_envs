@@ -1,5 +1,5 @@
 # Extended Controller Envs
-Repo with custom Mujoco Gymnasium environments for use in [https://github.com/RX-00/ext_ctrl]
+Repo with custom Mujoco Gymnasium environments for use in [https://github.com/RX-00/ext_ctrl]. Make sure to pip install -e . this repository before using the ext_ctrl project.
 
 ## Systems for testing (with nominal and non-nominal versions)
 cartpole: inverted pendulum on a cart in mujoco \
