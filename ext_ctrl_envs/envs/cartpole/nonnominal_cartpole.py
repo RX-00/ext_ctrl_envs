@@ -23,6 +23,7 @@ class NonnominalCartpoleEnv(MujocoEnv, utils.EzPickle):
             "human",
             "rgb_array",
             "depth_array",
+            "offscreen",
         ],
         "render_fps": 50,
     }
