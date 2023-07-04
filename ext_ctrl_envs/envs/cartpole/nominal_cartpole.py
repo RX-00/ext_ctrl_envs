@@ -24,7 +24,6 @@ class NominalCartpoleEnv(MujocoEnv, utils.EzPickle):
             "human",
             "rgb_array",
             "depth_array",
-            "offscreen",
         ],
         "render_fps": 50, # NOTE: This depends on the .xml's timestep value
     }
