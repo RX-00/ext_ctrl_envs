@@ -52,6 +52,27 @@ class NominalCartpoleEnv(MujocoEnv, utils.EzPickle):
         if self.render_mode == "human":
             self.render()
         return ob, reward, terminated, False, {}
+    
+    # Step forward in simulation, given an action and trajectory
+    def step(self, a, trajectory_state):
+        self.do_simulation(a, self.frame_skip)
+        ob = self._get_obs()
+
+        '''
+        Calculate reward based on MSE on trajectory state tracking
+        '''
+        reward = 0.0
+        # TODO: find out what type ob is
+        # TODO: what type should trajectory_state be
+
+        # termination state conditions
+        terminated = bool(not np.isfinite(ob).all() or (np.abs(ob[1]) > 1.2)) 
+        
+        # to render or not to render
+        if self.render_mode == "human":
+            self.render()
+
+        return ob, reward, terminated, False, {}
 
     # Initial state of the system
     def reset_model(self):
