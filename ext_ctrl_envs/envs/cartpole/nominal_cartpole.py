@@ -61,7 +61,7 @@ class NominalCartpoleEnv(MujocoEnv, utils.EzPickle):
         ob = self._get_obs()
         
         # termination state conditions
-        terminated = bool(not np.isfinite(ob).all() or (np.abs(ob[1]) > 0.2))
+        terminated = bool(not np.isfinite(ob).all()) #or (np.abs(ob[1]) > 0.2))
         if self.render_mode == "human":
             self.render()
         return ob, reward, terminated, False, {}
@@ -92,7 +92,7 @@ class NominalCartpoleEnv(MujocoEnv, utils.EzPickle):
         reward = (max_val_sq_exp_x +
                   max_val_sq_exp_x_dot +
                   max_val_sq_exp_theta +
-                  max_val_sq_exp_theta_dot)
+                  max_val_sq_exp_theta_dot) / 1e3 # just a scaling factor to make quickly interpreting rewards easier
 
         # termination state conditions
         # NOTE: the pendulum angle cutoff range is not considered
