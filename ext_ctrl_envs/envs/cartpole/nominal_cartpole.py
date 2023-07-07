@@ -4,6 +4,8 @@ import numpy as np
 from gymnasium import utils
 from gymnasium.envs.mujoco import MujocoEnv
 from gymnasium.spaces import Box
+from scipy.optimize import minimize
+
 
 
 DEFAULT_CAMERA_CONFIG = {
@@ -40,6 +42,17 @@ class NominalCartpoleEnv(MujocoEnv, utils.EzPickle):
             default_camera_config=DEFAULT_CAMERA_CONFIG,
             **kwargs,
         )
+    
+    '''
+    Helper Functions for calculating the reward
+    '''
+    def squared_exponential(self, x, ob):
+        return -np.exp(-0.5 * (x - ob)**2)
+
+    # Define the objective function to maximize
+    def objective_function(self, x, ob):
+        return self.squared_exponential(x, ob)
+
 
     # Step forward in simulation, given an action
     def step(self, a):
@@ -53,26 +66,44 @@ class NominalCartpoleEnv(MujocoEnv, utils.EzPickle):
             self.render()
         return ob, reward, terminated, False, {}
     
+
     # Step forward in simulation, given an action and trajectory
-    def step(self, a, trajectory_state):
+    def step_traj_track(self, a, x, x_dot, theta, theta_dot):
         self.do_simulation(a, self.frame_skip)
         ob = self._get_obs()
 
         '''
-        Calculate reward based on MSE on trajectory state tracking
+        Calculate reward based on max(squared exponential of tracking error)
+        on trajectory state tracking
         '''
-        reward = 0.0
-        # TODO: find out what type ob is
-        # TODO: what type should trajectory_state be
+        result = minimize(self.objective_function, x, ob[0], method='BFGS')
+        max_val_sq_exp_x = -result.fun
+
+        result = minimize(self.objective_function, x_dot, ob[1], method='BFGS')
+        max_val_sq_exp_x_dot = -result.fun
+
+        result = minimize(self.objective_function, theta, ob[2], method='BFGS')
+        max_val_sq_exp_theta = -result.fun
+
+        result = minimize(self.objective_function, theta_dot, ob[3], method='BFGS')
+        max_val_sq_exp_theta_dot = -result.fun
+
+        
+        reward = (max_val_sq_exp_x +
+                  max_val_sq_exp_x_dot +
+                  max_val_sq_exp_theta +
+                  max_val_sq_exp_theta_dot)
 
         # termination state conditions
-        terminated = bool(not np.isfinite(ob).all() or (np.abs(ob[1]) > 1.2)) 
+        # NOTE: the pendulum angle cutoff range is not considered
+        terminated = bool(not np.isfinite(ob).all()) #or (np.abs(ob[1]) > 1.2)) 
         
         # to render or not to render
         if self.render_mode == "human":
             self.render()
 
-        return ob, reward, terminated, False, {}
+        return ob, reward, terminated, False
+
 
     # Initial state of the system
     def reset_model(self):
