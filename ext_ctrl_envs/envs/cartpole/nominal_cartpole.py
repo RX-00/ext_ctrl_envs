@@ -56,14 +56,18 @@ class NominalCartpoleEnv(MujocoEnv, utils.EzPickle):
 
     # Step forward in simulation, given an action
     def step(self, a):
-        reward = 1.0
+        reward = 0.0
         self.do_simulation(a, self.frame_skip)
         ob = self._get_obs()
         
         # termination state conditions
-        terminated = bool(not np.isfinite(ob).all()) #or (np.abs(ob[1]) > 0.2))
+        terminated = bool(not np.isfinite(ob).all() or (np.abs(ob[1]) > 0.2))
         if self.render_mode == "human":
             self.render()
+        
+        if not terminated:
+            reward = 1.0
+
         return ob, reward, terminated, False, {}
     
 
@@ -71,28 +75,37 @@ class NominalCartpoleEnv(MujocoEnv, utils.EzPickle):
     def step_traj_track(self, a, x, x_dot, theta, theta_dot):
         self.do_simulation(a, self.frame_skip)
         ob = self._get_obs()
-
+        reward = 0
         '''
         Calculate reward based on max(squared exponential of tracking error)
         on trajectory state tracking
+
+        # NOTE: ob is organized as follows,
+                [x, theta, x_dot, theta_dot]
         '''
         result = minimize(self.objective_function, x, ob[0], method='BFGS')
         max_val_sq_exp_x = -result.fun
 
-        result = minimize(self.objective_function, x_dot, ob[1], method='BFGS')
+        result = minimize(self.objective_function, x_dot, ob[2], method='BFGS')
         max_val_sq_exp_x_dot = -result.fun
 
-        result = minimize(self.objective_function, theta, ob[2], method='BFGS')
+        result = minimize(self.objective_function, theta, ob[1], method='BFGS')
         max_val_sq_exp_theta = -result.fun
 
         result = minimize(self.objective_function, theta_dot, ob[3], method='BFGS')
         max_val_sq_exp_theta_dot = -result.fun
 
-        
-        reward = (max_val_sq_exp_x +
-                  max_val_sq_exp_x_dot +
-                  max_val_sq_exp_theta +
-                  max_val_sq_exp_theta_dot) / 1e3 # just a scaling factor to make quickly interpreting rewards easier
+        '''
+        NOTE: reward might be too sparse
+            TODO: figure out what reward should be, scaling factors
+        '''
+        if (max_val_sq_exp_x < 0.1 and
+            max_val_sq_exp_x_dot < 0.1 and
+            max_val_sq_exp_theta < 0.1 and
+            max_val_sq_exp_theta_dot < 0.1):
+            reward = 1
+        else:
+            reward = 0
 
         # termination state conditions
         # NOTE: the pendulum angle cutoff range is not considered
@@ -102,7 +115,7 @@ class NominalCartpoleEnv(MujocoEnv, utils.EzPickle):
         if self.render_mode == "human":
             self.render()
 
-        return ob, reward, terminated, False
+        return ob, reward, terminated, False, {}
 
 
     # Initial state of the system
