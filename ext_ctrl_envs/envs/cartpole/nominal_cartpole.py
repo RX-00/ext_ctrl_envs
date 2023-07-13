@@ -61,7 +61,9 @@ class NominalCartpoleEnv(MujocoEnv, utils.EzPickle):
         ob = self._get_obs()
         
         # termination state conditions
-        terminated = bool(not np.isfinite(ob).all() or (np.abs(ob[1]) > 0.2))
+        terminated = bool(not np.isfinite(ob).all() or 
+                          (np.abs(ob[1]) > 0.1) or  # keep pend upright
+                          (np.abs(ob[0]) > 0.1))    # keep cart at near origin
         if self.render_mode == "human":
             self.render()
         
@@ -131,4 +133,8 @@ class NominalCartpoleEnv(MujocoEnv, utils.EzPickle):
 
     # Return state observation
     def _get_obs(self):
+        return np.concatenate([self.data.qpos, self.data.qvel]).ravel()
+    
+    # Return state observation
+    def get_obs(self):
         return np.concatenate([self.data.qpos, self.data.qvel]).ravel()
