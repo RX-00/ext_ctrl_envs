@@ -4,7 +4,6 @@ import numpy as np
 from gymnasium import utils
 from gymnasium.envs.mujoco import MujocoEnv
 from gymnasium.spaces import Box
-from scipy.optimize import minimize
 
 
 
@@ -42,17 +41,6 @@ class NominalCartpoleEnv(MujocoEnv, utils.EzPickle):
             default_camera_config=DEFAULT_CAMERA_CONFIG,
             **kwargs,
         )
-    
-    '''
-    Helper Functions for calculating the reward
-    '''
-    def squared_exponential(self, x, ob):
-        return -np.exp(-0.5 * (x - ob)**2)
-
-    # Define the objective function to maximize
-    def objective_function(self, x, ob):
-        return self.squared_exponential(x, ob)
-
 
     # Step forward in simulation, given an action
     def step(self, a):
@@ -71,10 +59,18 @@ class NominalCartpoleEnv(MujocoEnv, utils.EzPickle):
             reward = 1.0
 
         return ob, reward, terminated, False, {}
+
+
+    # Calculate reward
+    def calc_reward(self, ref_val, obs_val, weight_h, alpha):
+        tracking_reward = (weight_h * np.exp(-alpha * abs(ref_val - obs_val)**2))
+        if tracking_reward > weight_h:
+            print("ERR: tracking_reward exceeded weight_h, this shouldn't be possible")
+        return tracking_reward
     
 
     # Step forward in simulation, given an action and trajectory
-    def step_traj_track(self, a, x, x_dot, theta, theta_dot):
+    def step_traj_track(self, a, x, x_dot, theta, theta_dot, u, weight_h, interm_weights):
         self.do_simulation(a, self.frame_skip)
         ob = self._get_obs()
         reward = 0
@@ -83,36 +79,29 @@ class NominalCartpoleEnv(MujocoEnv, utils.EzPickle):
         on trajectory state tracking
 
         # NOTE: ob is organized as follows,
-                [x, theta, x_dot, theta_dot]
+                [x, theta, x_dot, theta_dot], we add action a to get
+                obs
+                [x, theta, x_dot, theta_dot, a]
+                 0    1      2      3        4
         '''
-        result = minimize(self.objective_function, x, ob[0], method='BFGS')
-        max_val_sq_exp_x = -result.fun
-
-        result = minimize(self.objective_function, x_dot, ob[2], method='BFGS')
-        max_val_sq_exp_x_dot = -result.fun
-
-        result = minimize(self.objective_function, theta, ob[1], method='BFGS')
-        max_val_sq_exp_theta = -result.fun
-
-        result = minimize(self.objective_function, theta_dot, ob[3], method='BFGS')
-        max_val_sq_exp_theta_dot = -result.fun
-
-        '''
-        NOTE: reward might be too sparse
-            TODO: figure out what reward should be, scaling factors
-        '''
-        if (max_val_sq_exp_x < 0.1 and
-            max_val_sq_exp_x_dot < 0.1 and
-            max_val_sq_exp_theta < 0.1 and
-            max_val_sq_exp_theta_dot < 0.1):
-            reward = 1
-        else:
-            reward = 0
+        obs = np.append(ob, a)
+        ref_obs = [x, theta, x_dot, theta_dot, u]
+        indx = 0
+        for interm_weight in interm_weights:
+            reward += self.calc_reward(ref_val=ref_obs[indx],
+                                       obs_val=obs[indx], 
+                                       weight_h=weight_h,
+                                       alpha=interm_weight)
+            indx += 1
 
         # termination state conditions
         # NOTE: the pendulum angle cutoff range is not considered
-        terminated = bool(not np.isfinite(ob).all()) #or (np.abs(ob[1]) > 1.2)) 
-        
+        terminated = bool(not np.isfinite(ob).all() or
+                          np.abs(ob[1]) > 1.2 or
+                          abs(ref_obs[0] - obs[0]) > 0.1 or
+                          abs(ref_obs[1] - obs[1]) > 0.1)
+        if terminated:
+            reward = 0
         # to render or not to render
         if self.render_mode == "human":
             self.render()
