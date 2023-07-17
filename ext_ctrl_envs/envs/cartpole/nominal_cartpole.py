@@ -52,6 +52,7 @@ class NominalCartpoleEnv(MujocoEnv, utils.EzPickle):
         terminated = bool(not np.isfinite(ob).all() or 
                           (np.abs(ob[1]) > 0.1) or  # keep pend upright
                           (np.abs(ob[0]) > 0.1))    # keep cart at near origin
+        
         if self.render_mode == "human":
             self.render()
         
@@ -74,6 +75,8 @@ class NominalCartpoleEnv(MujocoEnv, utils.EzPickle):
         self.do_simulation(a, self.frame_skip)
         ob = self._get_obs()
         reward = 0
+        gamma = 0
+        terminated = False
         '''
         Calculate reward based on max(squared exponential of tracking error)
         on trajectory state tracking
@@ -94,12 +97,18 @@ class NominalCartpoleEnv(MujocoEnv, utils.EzPickle):
                                        alpha=interm_weight)
             indx += 1
 
-        # termination state conditions
-        # NOTE: the pendulum angle cutoff range is not considered
-        terminated = bool(not np.isfinite(ob).all() or
-                          np.abs(ob[1]) > 1.2 or
-                          abs(ref_obs[0] - obs[0]) > 0.1 or
-                          abs(ref_obs[1] - obs[1]) > 0.1)
+        # truncation criterion
+        for i in range(obs.size):
+            gamma += 1.0 / (3.0 * obs.size) * abs(ref_obs[i] - obs[i])
+        epsilon = 0.5
+        r_trunc = 1 - gamma / epsilon
+        
+        # termination conditions
+        if (not np.isfinite(obs).all() or
+            np.abs(obs[1]) > 1.2 or
+            r_trunc > epsilon):
+            terminated = True
+
         if terminated:
             reward = 0
         # to render or not to render
