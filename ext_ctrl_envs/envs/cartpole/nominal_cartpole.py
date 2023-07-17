@@ -91,21 +91,27 @@ class NominalCartpoleEnv(MujocoEnv, utils.EzPickle):
         ref_obs = [x, theta, x_dot, theta_dot, u]
         indx = 0
         for interm_weight in interm_weights:
-            reward += self.calc_reward(ref_val=ref_obs[indx],
-                                       obs_val=obs[indx], 
-                                       weight_h=weight_h,
-                                       alpha=interm_weight)
+            if (indx < 4):
+                reward += self.calc_reward(ref_val=ref_obs[indx],
+                                        obs_val=obs[indx], 
+                                        weight_h=weight_h,
+                                        alpha=interm_weight)
+            if (indx == 4):
+                reward += self.calc_reward(ref_val=ref_obs[indx],
+                                        obs_val=obs[indx], 
+                                        weight_h=weight_h,
+                                        alpha=interm_weight)
             indx += 1
 
         # truncation criterion
         for i in range(obs.size):
-            gamma += 1.0 / (3.0 * obs.size) * abs(ref_obs[i] - obs[i])
+            gamma += abs(ref_obs[i] - obs[i])
+        gamma = 1.0 / (3.0 * obs.size) * gamma
         epsilon = 0.5
         r_trunc = 1 - gamma / epsilon
         
         # termination conditions
         if (not np.isfinite(obs).all() or
-            np.abs(obs[1]) > 1.2 or
             r_trunc > epsilon):
             terminated = True
 
