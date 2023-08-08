@@ -50,24 +50,24 @@ class NominalCartpoleEnv(MujocoEnv, utils.EzPickle):
         
         # termination state conditions
         terminated = bool(not np.isfinite(ob).all() or 
-                          (np.abs(ob[1]) > 0.1) or  # keep pend upright
-                          (np.abs(ob[0]) > 0.1))    # keep cart at near origin
+                          (np.abs(ob[1]) > 0.01) or  # keep pend upright
+                          (np.abs(ob[0]) > 0.01))    # keep cart at near origin
         
         if self.render_mode == "human":
             self.render()
-        
+
         if not terminated:
             reward = 1.0
-
-        return ob, reward, terminated, False, {}
+        
+        return ob, reward, False, False, {}
 
 
     # Calculate reward
     def calc_reward(self, ref_val, obs_val, weight_h, alpha):
-        tracking_reward = (weight_h * np.exp(-alpha * abs(ref_val - obs_val)**2))
-        if tracking_reward > weight_h:
+        tracking_reward = (weight_h * np.exp(-alpha * np.abs(ref_val - obs_val)**2))
+        if np.abs(tracking_reward) > weight_h:
             print("ERR: tracking_reward exceeded weight_h, this shouldn't be possible")
-        return tracking_reward
+        return np.abs(tracking_reward)
     
 
     # Step forward in simulation, given an action and trajectory
@@ -75,7 +75,6 @@ class NominalCartpoleEnv(MujocoEnv, utils.EzPickle):
         self.do_simulation(a, self.frame_skip)
         ob = self._get_obs()
         reward = 0
-        gamma = 0
         terminated = False
         '''
         Calculate reward based on max(squared exponential of tracking error)
@@ -89,30 +88,32 @@ class NominalCartpoleEnv(MujocoEnv, utils.EzPickle):
         '''
         obs = np.append(ob, a)
         ref_obs = [x, theta, x_dot, theta_dot, u]
-        indx = 0
-        for interm_weight in interm_weights:
+
+        for indx, interm_weight in enumerate(interm_weights):
+            if (indx == 0 or indx == 1):
+                # punish for not being cart 0 and pend 0
+                reward -= 4 * np.abs(obs[indx] - 0.0)**2
+                reward += self.calc_reward(ref_val=0.0,
+                                           obs_val=obs[indx],
+                                           weight_h=3,
+                                           alpha=100) # increase to make it more precise to earn reward
+            
             if (indx < 4):
                 reward += self.calc_reward(ref_val=ref_obs[indx],
-                                        obs_val=obs[indx], 
-                                        weight_h=weight_h,
-                                        alpha=interm_weight)
-            if (indx == 4):
-                reward += self.calc_reward(ref_val=ref_obs[indx],
-                                        obs_val=obs[indx], 
-                                        weight_h=weight_h,
-                                        alpha=interm_weight)
-            indx += 1
+                                            obs_val=obs[indx], 
+                                            weight_h=weight_h,
+                                            alpha=interm_weight)
 
         # truncation criterion
-        for i in range(obs.size):
-            gamma += abs(ref_obs[i] - obs[i])
-        gamma = 1.0 / (3.0 * obs.size) * gamma
-        epsilon = 0.5
-        r_trunc = 1 - gamma / epsilon
+        #gamma = 1.0 / (3.0 * (obs.size)) * np.sum(np.linalg.norm(ref_obs - obs))
+        #epsilon = 0.5
+        #r_trunc = 1 - gamma / epsilon
         
         # termination conditions
-        if (not np.isfinite(obs).all() or
-            r_trunc > epsilon):
+        if (not np.isfinite(obs).all() or #r_trunc > epsilon):
+            np.abs(ref_obs[0] - obs[0]) > 0.3 or # 0.25 is too tight
+            np.abs(ref_obs[1] - obs[1]) > 0.3 or # 0.25 is too tight
+            np.abs(obs[1]) > np.pi):
             terminated = True
 
         if terminated:
