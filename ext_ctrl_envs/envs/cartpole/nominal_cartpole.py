@@ -92,27 +92,33 @@ class NominalCartpoleEnv(MujocoEnv, utils.EzPickle):
         for indx, interm_weight in enumerate(interm_weights):
             if (indx == 0 or indx == 1):
                 # punish for not being cart 0 and pend 0
-                reward -= 4 * np.abs(obs[indx] - 0.0)**2
+                # punish 10 comes from 5 terms in state vector times 2
+                #reward -= 10 * np.abs(obs[indx] - 0.0)**2
+                punish = 4 # 10
+                reward -= -punish * np.exp(-10*np.abs(obs[indx])**2) + punish
+                # reward for being close to trajectory
                 reward += self.calc_reward(ref_val=0.0,
                                            obs_val=obs[indx],
                                            weight_h=3,
                                            alpha=100) # increase to make it more precise to earn reward
-            
-            if (indx < 4):
+                        
+            if (indx < 4): # 4
                 reward += self.calc_reward(ref_val=ref_obs[indx],
                                             obs_val=obs[indx], 
                                             weight_h=weight_h,
                                             alpha=interm_weight)
 
-        # truncation criterion
-        #gamma = 1.0 / (3.0 * (obs.size)) * np.sum(np.linalg.norm(ref_obs - obs))
-        #epsilon = 0.5
-        #r_trunc = 1 - gamma / epsilon
+        #reward += self.calc_reward(ref_val=0.0,
+        #                           obs_val=np.abs(obs[0])+np.abs(obs[1]),
+        #                           weight_h=2,
+        #                           alpha=1000) # increase to make it more precise to earn reward
         
         # termination conditions
         if (not np.isfinite(obs).all() or #r_trunc > epsilon):
-            np.abs(ref_obs[0] - obs[0]) > 0.3 or # 0.25 is too tight
-            np.abs(ref_obs[1] - obs[1]) > 0.3 or # 0.25 is too tight
+            np.abs(ref_obs[0] - obs[0]) > 0.25 or # 0.25 is too tight
+            np.abs(ref_obs[1] - obs[1]) > 0.25 or # 0.25 is too tight
+            #np.abs(ref_obs[2] - obs[2]) > 0.25 or # 0.25 is too tight
+            #np.abs(ref_obs[3] - obs[3]) > 0.25 or # 0.25 is too tight
             np.abs(obs[1]) > np.pi):
             terminated = True
 
