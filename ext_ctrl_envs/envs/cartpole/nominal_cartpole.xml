@@ -79,10 +79,15 @@
 	</keyframe>
 
 	<keyframe>
-		<key name="init_state" qpos="0 0.2" qvel="0 0.2"/>
+		<key name="init_state" qpos="0 0.0" qvel="0 0.0"/>
 	</keyframe>
 
 	<keyframe>
 		<key name="test_state" qpos="-0.0 1.2" qvel="0 0.0"/>
 	</keyframe>
+
+	<keyframe>
+		<key name="down_state" qpos="0.3 3.14" qvel="0 0.1"/>
+	</keyframe>
+
 </mujoco>

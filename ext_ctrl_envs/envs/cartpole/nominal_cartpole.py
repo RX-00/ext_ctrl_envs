@@ -1,5 +1,6 @@
 import os
 import numpy as np
+import torch
 
 from gymnasium import utils
 from gymnasium.envs.mujoco import MujocoEnv
@@ -69,26 +70,7 @@ class NominalCartpoleEnv(MujocoEnv, utils.EzPickle):
             print("ERR: tracking_reward exceeded weight_h, this shouldn't be possible")
         return np.abs(tracking_reward)
     
-
-    # Step forward in simulation, given an action and trajectory
-    def step_traj_track(self, a, x, x_dot, theta, theta_dot, u, weight_h, interm_weights):
-        self.do_simulation(a, self.frame_skip)
-        ob = self._get_obs()
-        reward = 0
-        terminated = False
-        '''
-        Calculate reward based on max(squared exponential of tracking error)
-        on trajectory state tracking
-
-        # NOTE: ob is organized as follows,
-                [x, theta, x_dot, theta_dot], we add action a to get
-                obs
-                [x, theta, x_dot, theta_dot, a]
-                 0    1      2      3        4
-        '''
-        obs = np.append(ob, a)
-        ref_obs = [x, theta, x_dot, theta_dot, u]
-
+    def step_lqr(self, obs, ref_obs, interm_weights, weight_h, reward, terminated):
         for indx, interm_weight in enumerate(interm_weights):
             if (indx == 0 or indx == 1):
                 # punish for not being cart 0 and pend 0
@@ -108,17 +90,15 @@ class NominalCartpoleEnv(MujocoEnv, utils.EzPickle):
                                             weight_h=weight_h,
                                             alpha=interm_weight)
         
-        # punish for time cost
-        if (interm_weights[4] > 250 and
+        # punish for time cost NOTE: for LQR balance training 250, swingup 350
+        if (interm_weights[5] > 350 and # 250
             (np.abs(obs[0]) > 0.01 or np.abs(obs[1] > 0.01))):
-            reward -= interm_weights[4] / 50
+            reward -= interm_weights[5] / 50
         
         # termination conditions
         if (not np.isfinite(obs).all() or #r_trunc > epsilon):
             np.abs(ref_obs[0] - obs[0]) > 0.25 or # 0.25 is too tight
             np.abs(ref_obs[1] - obs[1]) > 0.25 or # 0.25 is too tight
-            #np.abs(ref_obs[2] - obs[2]) > 0.25 or # 0.25 is too tight
-            #np.abs(ref_obs[3] - obs[3]) > 0.25 or # 0.25 is too tight
             np.abs(obs[1]) > np.pi):
             terminated = True
 
@@ -128,7 +108,75 @@ class NominalCartpoleEnv(MujocoEnv, utils.EzPickle):
         if self.render_mode == "human":
             self.render()
 
-        return ob, reward, terminated, False, {}
+        return obs[:4], reward, terminated, False, {}
+
+    def step_swingup(self, obs, ref_obs, interm_weights, weight_h, reward, terminated):
+        for indx, interm_weight in enumerate(interm_weights):
+            punish = 10              
+            if (indx == 1 and obs[1] % (2*np.pi) < 5.5831 and # -0.7 equivalent
+                obs[1] % (2*np.pi) > np.pi): 
+                # punish for being far away from desired state
+                reward -= -punish * np.exp(-10*np.abs(obs[indx])**2) + punish
+                # reward for being close to trajectory
+                reward += self.calc_reward(ref_val=5.5831,
+                                           obs_val=obs[indx] % (2*np.pi),
+                                           weight_h=3,
+                                           alpha=100)
+            elif (indx == 1 and obs[1] > 0.7 and  # 0.7
+                  obs[1] < np.pi):
+                # punish for being far away from desired state
+                reward -= -punish * np.exp(-10*np.abs(obs[indx])**2) + punish
+                # reward for being close to trajectory
+                reward += self.calc_reward(ref_val=0.7,
+                                           obs_val=obs[indx],
+                                           weight_h=3,
+                                           alpha=100)
+                        
+            if (indx < 4): # NOTE: maybe don't reward directly based on control signal
+                reward += self.calc_reward(ref_val=ref_obs[indx],
+                                            obs_val=obs[indx], 
+                                            weight_h=weight_h,
+                                            alpha=interm_weight)
+
+        # termination conditions
+        if (not np.isfinite(obs).all() or #r_trunc > epsilon):
+            np.abs(ref_obs[0] - obs[0]) > 0.25 or # 0.25 is too tight
+            np.abs(ref_obs[1] - obs[1]) > 0.25):
+            terminated = True
+
+        if terminated:
+            reward = 0
+        # to render or not to render
+        if self.render_mode == "human":
+            self.render()
+
+        return obs[:4], reward, terminated, False, {}
+
+    # Step forward in simulation, given an action and trajectory
+    def step_traj_track(self, a, x, x_dot, theta, theta_dot, u, 
+                        weight_h, interm_weights):
+        self.do_simulation(a, self.frame_skip)
+        ob = self._get_obs()
+        reward = 0
+        terminated = False
+        '''
+        Calculate reward based on max(squared exponential of tracking error)
+        on trajectory state tracking
+
+        # NOTE: ob is organized as follows,
+                [x, theta, x_dot, theta_dot], we add action a to get
+                obs
+                [x, theta, x_dot, theta_dot, a]
+                 0    1      2      3        4
+        '''
+        obs = np.append(ob, a)
+        ref_obs = [x, theta, x_dot, theta_dot, u]
+
+        if (np.abs(obs[1]) < 0.7 or np.abs(obs[1] % 2*np.pi) > 5.5831):
+            return self.step_lqr(obs, ref_obs, interm_weights, weight_h, reward, terminated)
+        elif (np.abs(obs[1]) >= 0.7 or np.abs(obs[1] % 2*np.pi) <= 5.5831):
+            return self.step_swingup(obs, ref_obs, interm_weights, weight_h, reward, terminated)
+
 
     # Step forward in simulation, given an action and trajectory and time
     def step_traj_track_t(self, a, x, x_dot, theta, theta_dot, u, weight_h, interm_weights, t):
