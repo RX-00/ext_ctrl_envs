@@ -77,7 +77,7 @@ class NominalCartpoleEnv(MujocoEnv, utils.EzPickle):
                 # punish 10 comes from 5 terms in state vector times 2
                 #reward -= 10 * np.abs(obs[indx] - 0.0)**2
                 punish = 4 # 10
-                reward -= -punish * np.exp(-10*np.abs(obs[indx])**2) + punish
+                reward -= -punish * np.exp(-10*np.abs(obs[indx]-0)**2) + punish
                 # reward for being close to trajectory
                 reward += self.calc_reward(ref_val=0.0,
                                            obs_val=obs[indx],
@@ -112,20 +112,24 @@ class NominalCartpoleEnv(MujocoEnv, utils.EzPickle):
 
     def step_swingup(self, obs, ref_obs, interm_weights, weight_h, reward, terminated):
         for indx, interm_weight in enumerate(interm_weights):
-            punish = 10              
-            if (indx == 1 and obs[1] % (2*np.pi) < 5.5831 and # -0.7 equivalent
-                obs[1] % (2*np.pi) > np.pi): 
+            punish = 10 
+            '''
+            Punish and reward based on pendulum angle, we don't have a desired final position
+            for the cart in this sub-controller
+            '''             
+            # -0.7 equivalent is 5.5831
+            if (indx == 1 and obs[1] % (2*np.pi) > np.pi):
                 # punish for being far away from desired state
-                reward -= -punish * np.exp(-10*np.abs(obs[indx])**2) + punish
+                reward -= -punish * np.exp(-10*np.abs(obs[indx]-5.5831)**2) + punish
                 # reward for being close to trajectory
                 reward += self.calc_reward(ref_val=5.5831,
                                            obs_val=obs[indx] % (2*np.pi),
                                            weight_h=3,
                                            alpha=100)
-            elif (indx == 1 and obs[1] > 0.7 and  # 0.7
-                  obs[1] < np.pi):
+                
+            elif (indx == 1 and obs[1] % (2*np.pi) < np.pi):
                 # punish for being far away from desired state
-                reward -= -punish * np.exp(-10*np.abs(obs[indx])**2) + punish
+                reward -= -punish * np.exp(-10*np.abs(obs[indx]-0.7)**2) + punish
                 # reward for being close to trajectory
                 reward += self.calc_reward(ref_val=0.7,
                                            obs_val=obs[indx],
@@ -140,8 +144,8 @@ class NominalCartpoleEnv(MujocoEnv, utils.EzPickle):
 
         # termination conditions
         if (not np.isfinite(obs).all() or #r_trunc > epsilon):
-            np.abs(ref_obs[0] - obs[0]) > 0.25 or # 0.25 is too tight
-            np.abs(ref_obs[1] - obs[1]) > 0.25):
+            np.abs(ref_obs[0] - obs[0]) > 0.5 or # 0.25 is too tight?
+            np.abs(ref_obs[1] - obs[1]) > 0.5):
             terminated = True
 
         if terminated:
