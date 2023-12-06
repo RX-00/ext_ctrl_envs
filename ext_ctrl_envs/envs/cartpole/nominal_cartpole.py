@@ -48,18 +48,18 @@ class NominalCartpoleEnv(MujocoEnv, utils.EzPickle):
         reward = 0.0
         self.do_simulation(a, self.frame_skip)
         ob = self._get_obs()
-        
+
         # termination state conditions
         terminated = bool(not np.isfinite(ob).all()) #or 
                           #(np.abs(ob[1]) > 0.01) or  # keep pend upright
                           #(np.abs(ob[0]) > 0.01))    # keep cart at near origin
-        
+
         if self.render_mode == "human":
             self.render()
 
         if not terminated:
             reward = 1.0
-        
+
         return ob, reward, False, False, {}
 
 
@@ -112,13 +112,13 @@ class NominalCartpoleEnv(MujocoEnv, utils.EzPickle):
 
     def step_swingup(self, obs, ref_obs, interm_weights, weight_h, reward, terminated):
         for indx, interm_weight in enumerate(interm_weights):
-            punish = 10 
+            punish = 5
             '''
             Punish and reward based on pendulum angle, we don't have a desired final position
             for the cart in this sub-controller
             '''             
             # -0.7 equivalent is 5.5831
-            if (indx == 1 and obs[1] % (2*np.pi) > np.pi):
+            if (indx == 1 and obs[1] % (2*np.pi) >= np.pi):
                 # punish for being far away from desired state
                 reward -= -punish * np.exp(-10*np.abs(obs[indx]-5.5831)**2) + punish
                 # reward for being close to trajectory
@@ -136,7 +136,7 @@ class NominalCartpoleEnv(MujocoEnv, utils.EzPickle):
                                            weight_h=3,
                                            alpha=100)
                         
-            if (indx < 4): # NOTE: maybe don't reward directly based on control signal
+            elif (indx == 0 or indx == 2 or indx == 3):
                 reward += self.calc_reward(ref_val=ref_obs[indx],
                                             obs_val=obs[indx], 
                                             weight_h=weight_h,
@@ -144,8 +144,8 @@ class NominalCartpoleEnv(MujocoEnv, utils.EzPickle):
 
         # termination conditions
         if (not np.isfinite(obs).all() or #r_trunc > epsilon):
-            np.abs(ref_obs[0] - obs[0]) > 0.5 or # 0.25 is too tight?
-            np.abs(ref_obs[1] - obs[1]) > 0.5):
+            np.abs(ref_obs[0] - obs[0]) > 0.25 or # 0.25 is too tight?
+            np.abs(ref_obs[1] - obs[1]) > 0.25):
             terminated = True
 
         if terminated:
