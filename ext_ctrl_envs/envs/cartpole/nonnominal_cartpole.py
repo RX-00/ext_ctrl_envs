@@ -42,6 +42,8 @@ class NonnominalCartpoleEnv(MujocoEnv, utils.EzPickle):
 
     def step(self, a):
         reward = 1.0
+        if len(a.shape) > 1:
+            a = np.array([a.item()])
         self.do_simulation(a, self.frame_skip)
         ob = self._get_obs()
         terminated = bool(not np.isfinite(ob).all()) #or (np.abs(ob[1]) > 0.2))
