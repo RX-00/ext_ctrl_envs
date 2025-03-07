@@ -54,6 +54,7 @@ theta_positions = [state[1]]
 # for if the system is in a termination or truncation state
 done = False
 
+np.set_printoptions(3, suppress=True)
 
 '''
 LQR Controller (hand written method)
@@ -65,39 +66,11 @@ lp = 1.0
 mp = 0.1
 mc = 1.0
 
-# state transition matrix
-a1 = (-12*mp*g) / (13*mc+mp)
-a2 = (12*(mp*g + mc*g)) / (lp*(13*mc + mp))
-A = np.array([[0, 1, 0,  0],
-              [0, 0, a1, 0],
-              [0, 0, 0,  1],
-              [0, 0, a2, 0]])
-
-# control transition matrix
-b1 = 13 / (13*mc + mp)
-b2 = -12/ (lp*(13*mc + mp))
-B = np.array([[0 ],
-              [b1],
-              [0 ],
-              [b2]])
-
 R = np.eye(1, dtype=int) * 10     # choose R (weight for input), we want input to be min.
 Q = np.array([[10,  0,  0,  0  ],
               [ 0,  1,  0,  0  ],
               [ 0,  0, 10,  0  ],
               [ 0,  0,  0,  1  ]])     # choose Q (weighted for cart pos and pendulum angle)
-
-# Solves the continuous-time algebraic Riccati equation (CARE).
-P = linalg.solve_continuous_are(A, B, Q, R)
-
-# Calculate optimal controller gain
-K = np.dot(np.linalg.inv(R),
-           np.dot(B.T, P))
-#print(K)
-
-def apply_ctrlr(K, x):
-    u = -np.dot(K, x)
-    return u
 
 # storing ctrl inputs
 us = [np.array(0)]
@@ -190,6 +163,7 @@ mujoco.mjd_transitionFD(env.unwrapped.model, env.unwrapped.data,
                         epsilon, flg_centered, A, B, None, None)
 
 print(A)
+print(B)
 
 # Solve discrete Riccati equation.
 P = linalg.solve_discrete_are(A, B, Q, R)
