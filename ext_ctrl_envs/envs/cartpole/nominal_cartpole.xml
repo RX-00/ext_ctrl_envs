@@ -28,7 +28,7 @@
 		<material name="site" rgba=".5 .5 .5 .3"/>
 	</asset>
 
-	<option timestep="0.01" integrator="RK4" gravity="0 0 -9.81">
+	<option timestep="0.01" integrator="implicit" gravity="0 0 -9.81">
 		<flag contact="disable" energy="enable"/>
 	</option>
 

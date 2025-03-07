@@ -45,6 +45,7 @@ class NominalCartpoleEnv(MujocoEnv, utils.EzPickle):
 
     # Step forward in simulation, given an action
     def step(self, a):
+
         reward = 0.0
         self.do_simulation(a, self.frame_skip)
         ob = self._get_obs()

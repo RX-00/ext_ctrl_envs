@@ -35,7 +35,7 @@ def get_description():
 setup(
     name="ext_ctrl_envs",
     version=get_version(),
-    install_requires=["gymnasium==0.28.1", "mujoco==2.3.5"],
+    install_requires=[],
     long_description=get_description(),
     long_description_content_type="text/markdown",
 )
